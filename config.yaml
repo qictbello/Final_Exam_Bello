@@ -1,0 +1,78 @@
+---
+- hosts: all
+  become: true
+  pre_tasks:
+
+  -  name: update repository index CentOS
+     dnf:
+       update_cache: yes
+     changed_when: false
+     when: ansible_distribution == "CentOS"
+
+  -  name: update repository index Ubuntu
+     apt:
+       upgrade: dist
+       update_cache: yes
+     changed_when: false
+     when: ansible_distribution == "Ubuntu"
+
+- hosts: all
+  become: true
+  tasks:
+
+  -  name: install docker ubuntu
+     apt:
+       name: docker.io
+       state: latest
+     when: ansible_distribution == "Ubuntu"
+
+  -  name: install docker centos
+     shell: 'curl -fsSL https://get.docker.com/ | sh'
+     when: ansible_distribution == "CentOS"
+
+  -  name: install docker sdk ubuntu
+     apt:
+       name: python3-docker
+       update_cache: yes
+       cache_valid_time: 3600
+     when: ansible_distribution == "Ubuntu"
+
+  -  name: docker permission ubuntu
+     shell: 'sudo usermod -aG docker $USER'
+     when: ansible_distribution == "Ubuntu"
+
+  -  name: install docker sdk centos
+     yum:
+       name: python-docker-py
+       update_cache: yes
+     when: ansible_distribution == "CentOS"
+
+  -  name: docker permission centos
+     shell: 'sudo usermod -aG docker $(whoami)'
+     when: ansible_distribution == "CentOS"
+
+
+  -  name: start and enable docker
+     service:
+       name: docker
+       state: started
+
+  -  name: cpy dockerfile
+     copy: src=dockerfile dest=/tmp/path/
+
+  -  name: cpy index
+     copy: src=index.html dest=/tmp/path/
+
+  -  name: docker build
+     docker_image:
+       name: apachehtop
+       build:
+         path: /tmp/path/
+         args:
+           listen_port: 8080
+       source: build
+
+  - name: MOTD deployer default
+    copy:
+       content: "Ansible Managed node by Bello\n"
+       dest: /etc/motd
